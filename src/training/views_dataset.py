@@ -1,12 +1,27 @@
 import warnings
 
 import numpy as np
+import quaternion
 import torch
 from torch.utils.data import DataLoader
 
 from src.configs.train_config import RenderConfig
 from src.utils import get_view_direction
 from loguru import logger
+
+
+def from_camera_pose_to_T_wc(camera_pose):
+    # camera_pose: x, y, z, qx, qy, qz, qw
+    # camera_pose: T_wc
+    x, y, z, qx, qy, qz, qw = camera_pose
+    q_wc = np.quaternion(qw, qx, qy, qz)
+    R_wc = quaternion.as_rotation_matrix(q_wc)
+
+    T_wc = np.eye(4)
+    T_wc[:3, :3] = R_wc
+    T_wc[:3, 3] = np.array([x, y, z])
+
+    return T_wc
 
 
 def rand_poses(size, device, radius_range=(1.0, 1.5), theta_range=(0.0, 150.0), phi_range=(0.0, 360.0),
@@ -82,6 +97,87 @@ def circle_poses(device, radius=1.25, theta=60.0, phi=0.0, angle_overhead=30.0, 
     dirs = get_view_direction(thetas, phis, angle_overhead, angle_front)
 
     return dirs, thetas.item(), phis.item(), radius
+
+
+def pose_euclidean2sphere(p_x, p_y, p_z, q_x, q_y, q_z, q_w):
+    """
+    elev: theta
+    azim: phi
+    camera coordinate to opengl: y = -y, z = -z
+    """
+    eps = np.finfo(np.float32).eps
+    r = (p_x ** 2.0 + p_y ** 2.0 + p_z ** 2.0) ** 0.5
+    if r <= np.finfo(np.float32).eps:
+        theta = torch.tensor(0.0)
+        phi = torch.tensor(0.0)
+    else:
+        if ((p_z / r) > (1.0 - eps)):
+            theta = torch.arccos(torch.tensor(1.0))
+        elif ((p_z / r) < -(1.0 - eps)):
+            theta = torch.arccos(torch.tensor(-1.0))
+        else:
+            theta = torch.arccos(p_z / r)
+        if (r* torch.sin(theta) < eps):
+            phi = torch.tensor(0.0)
+        elif (p_x / (r * torch.sin(theta))) > (1.0 - eps):
+            phi = torch.arccos(torch.tensor(1.0))
+        elif (p_x / (r * torch.sin(theta))) < -(1.0 - eps):
+            phi = torch.arccos(torch.tensor(-1.0))
+        else:
+            phi = torch.arccos(p_x / (r * torch.sin(theta)))
+
+    camera_pose = [p_x, p_y, p_z, q_x, q_y, q_z, q_w]
+    T_wc = from_camera_pose_to_T_wc(camera_pose)
+
+    # transform to opengl coordinate
+    T_wc[:, 1:3] = -T_wc[:, 1:3]
+
+    look_at_c = np.array([0.0, 0.0, -1.0, 1.0])
+
+    look_at_w = T_wc.dot(look_at_c)
+    look_at_w = look_at_w[:3]
+    
+    direction = np.array([0.0, 1.0, 0.0])
+    
+    return phi, theta, r, look_at_w, direction
+
+
+class FixedViewDataset:
+    def __init__(self, cfg: RenderConfig, device):
+        super().__init__()
+
+        self.cfg = cfg
+        self.device = device
+
+        self.view_ps = np.loadtxt(self.cfg.translation_filepath, delimiter=" ")
+
+        self.single_view_qs = np.loadtxt(self.cfg.rotation_filepath, delimiter=" ")
+
+        self.size = len(self.view_ps)
+
+    def collate(self, index):
+        px, py, pz = self.view_ps[index[0]]
+
+        T_wcs = []
+        for i in range(len(self.single_view_qs)):
+            qx, qy, qz, qw = self.single_view_qs[i]
+            camera_pose = [px, py, pz, qx, qy, qz, qw]
+            T_wc = from_camera_pose_to_T_wc(camera_pose)
+            T_wcs.append(T_wc)
+
+        T_wcs = torch.from_numpy(np.array(T_wcs)).to(self.device)
+            
+        data = {
+            'T_wcs': T_wcs 
+        }
+
+        return data
+
+    def dataloader(self):
+        loader = DataLoader(list(range(self.size)), batch_size=1, collate_fn=self.collate, shuffle=False,
+                            num_workers=0)
+        loader._data = self  # an ugly fix... we need to access dataset in trainer.
+        return loader
 
 
 class MultiviewDataset:

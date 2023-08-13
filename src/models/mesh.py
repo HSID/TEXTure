@@ -21,8 +21,17 @@ class Mesh:
         self.vertices = mesh.vertices.to(device)
         self.faces = mesh.faces.to(device)
         self.normals, self.face_area = self.calculate_face_normals(self.vertices, self.faces)
-        self.ft = mesh.face_uvs_idx
-        self.vt = mesh.uvs
+        print("debug Mesh.__init__")
+        print("self.vertices.shape:", self.vertices.shape)
+        print("self.faces.shape:", self.faces.shape)
+        print("self.normals.shape:", self.normals.shape)
+        print("self.face_area.shape:", self.face_area.shape)
+        self.ft = mesh.face_uvs_idx  # indices into UVmap for every vertex of every face of shape (num_faces, face_size), each face has three values correponding to the indices of face vertices in the uv map. (face table)
+        if self.ft is not None:
+            print("self.ft.shape:", self.ft.shape)
+        self.vt = mesh.uvs  # UV map coordinates of shape (num_uvs, 2), num_uvs should equal to num_vertice of the mesh. UV map maps each mesh vertex to the 2-dim uv coordinates. (vertex table)
+        if self.vt is not None:
+            print("self.vt.shape:", self.vt.shape)
 
     @staticmethod
     def calculate_face_normals(vertices: torch.Tensor, faces: torch.Tensor):

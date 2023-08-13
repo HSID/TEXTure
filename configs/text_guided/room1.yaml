@@ -1,0 +1,22 @@
+log:
+  exp_name: room1
+  save_interval: 18
+guide:
+  text: "a 360 equirectangular panorama of  interior, A modern interpretation of Chinese design, combining traditional elements with contemporary influences to create a harmonious and elegant space, a living room with sofa,windows,a small stool , (((raytracing))),(((extremely detailed CG unity 8k wallpaper))) ,smooth, sharp focus,warm light, movie scene, octane render, volumetric light, 8k, Canon EOS 5D, intricate, highly detailed,HDR"
+  diffusion_name: stabilityai/stable-diffusion-2-depth
+  shape_scale: 10.0
+  append_direction: True
+  shape_path: shapes/BL_01.obj
+  texture_resolution: 2048
+  guidance_scale: 10
+  texture_interpolation_mode: 'bilinear'
+  dy: 0.0
+  append_direction: False
+optim:
+  seed: 2
+render:
+  front_offset: 0
+  n_views: 25
+  radius: 0.1
+  translation_filepath: '/storage0/data/panorama/room-1/cam_translations.txt' 
+  rotation_filepath: '/storage0/data/panorama/room-1/cubemap_rotations.txt' 

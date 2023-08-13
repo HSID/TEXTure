@@ -23,14 +23,14 @@ class StableDiffusion(nn.Module):
                  use_inpaint=False):
         super().__init__()
 
-        try:
-            with open('./TOKEN', 'r') as f:
-                self.token = f.read().replace('\n', '')  # remove the last \n!
-                logger.info(f'loaded hugging face access token from ./TOKEN!')
-        except FileNotFoundError as e:
-            self.token = True
-            logger.warning(
-                f'try to load hugging face access token from the default place, make sure you have run `huggingface-cli login`.')
+        # try:
+        #     with open('./TOKEN', 'r') as f:
+        #         self.token = f.read().replace('\n', '')  # remove the last \n!
+        #         logger.info(f'loaded hugging face access token from ./TOKEN!')
+        # except FileNotFoundError as e:
+        #     self.token = True
+        #     logger.warning(
+        #         f'try to load hugging face access token from the default place, make sure you have run `huggingface-cli login`.')
 
         self.device = device
         self.latent_mode = latent_mode
@@ -43,23 +43,28 @@ class StableDiffusion(nn.Module):
         logger.info(f'loading stable diffusion with {model_name}...')
 
         # 1. Load the autoencoder model which will be used to decode the latents into image space. 
-        self.vae = AutoencoderKL.from_pretrained(model_name, subfolder="vae", use_auth_token=self.token).to(self.device)
+        #self.vae = AutoencoderKL.from_pretrained(model_name, subfolder="vae", use_auth_token=self.token).to(self.device)
+        self.vae = AutoencoderKL.from_pretrained(model_name, subfolder="vae").to(self.device)
 
         # 2. Load the tokenizer and text encoder to tokenize and encode the text. 
-        self.tokenizer = CLIPTokenizer.from_pretrained(model_name, subfolder='tokenizer', use_auth_token=self.token)
-        self.text_encoder = CLIPTextModel.from_pretrained(model_name, subfolder='text_encoder',
-                                                          use_auth_token=self.token).to(self.device)
+        #self.tokenizer = CLIPTokenizer.from_pretrained(model_name, subfolder='tokenizer', use_auth_token=self.token)
+        self.tokenizer = CLIPTokenizer.from_pretrained(model_name, subfolder='tokenizer')
+        #self.text_encoder = CLIPTextModel.from_pretrained(model_name, subfolder='text_encoder',
+        #                                                  use_auth_token=self.token).to(self.device)
+        self.text_encoder = CLIPTextModel.from_pretrained(model_name, subfolder='text_encoder').to(self.device)
         self.image_encoder = None
         self.image_processor = None
 
         # 3. The UNet model for generating the latents.
-        self.unet = UNet2DConditionModel.from_pretrained(model_name, subfolder="unet", use_auth_token=self.token).to(
-            self.device)
+        #self.unet = UNet2DConditionModel.from_pretrained(model_name, subfolder="unet", use_auth_token=self.token).to(
+        #    self.device)
+        self.unet = UNet2DConditionModel.from_pretrained(model_name, subfolder="unet").to(self.device)
 
         if self.use_inpaint:
-            self.inpaint_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-2-inpainting",
-                                                                     subfolder="unet", use_auth_token=self.token).to(
-                self.device)
+            #self.inpaint_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-2-inpainting",
+            #                                                         subfolder="unet", use_auth_token=self.token).to(
+            #    self.device)
+            self.inpaint_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-2-inpainting", subfolder="unet").to(self.device)
 
 
         # 4. Create a scheduler for inference

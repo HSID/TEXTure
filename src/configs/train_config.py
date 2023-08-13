@@ -29,6 +29,10 @@ class RenderConfig:
     views_after: List[Tuple[float, float]] = field(default_factory=[[180,30],[180,150]].copy)
     # Whether to alternate between the rotating views from the different sides
     alternate_views: bool = True
+    # camera translations
+    translation_filepath: str = None
+    # cubemap rotations
+    rotation_filepath: str = None
 
 @dataclass
 class GuideConfig:
